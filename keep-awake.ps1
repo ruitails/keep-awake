@@ -21,8 +21,6 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-Add-Type -AssemblyName System.Windows.Forms
-
 if (-not ("KeepAwakeMouse" -as [type])) {
     Add-Type @"
 using System;
@@ -39,6 +37,9 @@ public static class KeepAwakeMouse {
     public static extern bool SetCursorPos(int X, int Y);
 
     [DllImport("user32.dll")]
+    public static extern bool SetProcessDPIAware();
+
+    [DllImport("user32.dll")]
     public static extern void mouse_event(uint dwFlags, uint dx, uint dy, uint dwData, UIntPtr dwExtraInfo);
 
     private const uint MOUSEEVENTF_LEFTDOWN = 0x0002;
@@ -51,6 +52,10 @@ public static class KeepAwakeMouse {
 }
 "@
 }
+
+# Must run before reading screen bounds so coords match SetCursorPos under DPI scaling
+[void][KeepAwakeMouse]::SetProcessDPIAware()
+Add-Type -AssemblyName System.Windows.Forms
 
 function Get-CursorPoint {
     $p = New-Object KeepAwakeMouse+POINT
@@ -105,11 +110,12 @@ if (-not [KeepAwakeMouse]::SetCursorPos($x, $topY)) {
 
 while ($true) {
     $cur = Get-CursorPoint
-    Move-CursorSmooth $cur.X $cur.Y $x $botY
+    # Pin X so travel stays strictly vertical even if the cursor is bumped mid-cycle
+    Move-CursorSmooth $x $cur.Y $x $botY
     Click-AtEnd "bottom" $x $botY
 
     $cur = Get-CursorPoint
-    Move-CursorSmooth $cur.X $cur.Y $x $topY
+    Move-CursorSmooth $x $cur.Y $x $topY
     Click-AtEnd "top" $x $topY
 
     if ($CyclePauseSec -gt 0) {
