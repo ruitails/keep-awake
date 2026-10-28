@@ -1,4 +1,4 @@
-# Keep the PC awake: vertical sweep between two fixed screen points, click at each end.
+﻿# Keep the PC awake: vertical sweep between two fixed screen points, click at each end.
 # Built-in PowerShell + user32.dll only. Ctrl+C to stop.
 #
 # Target points are the two red dots from a 1440x900 reference screenshot,
@@ -6,7 +6,8 @@
 
 param(
     # 1 = Primary, 2 = Secondary, 0 = prompt interactively
-    [int]$Screen = 0,
+    # Named Monitor (not Screen) — PowerShell vars are case-insensitive.
+    [int]$Monitor = 0,
     # Reference canvas the red-dot coords were measured against
     [int]$RefWidth = 1440,
     [int]$RefHeight = 900,
@@ -113,7 +114,7 @@ function Format-ScreenChoice($item) {
     return ("{0}. {1} ({2}x{3})" -f $item.Number, $item.Label, $b.Width, $b.Height)
 }
 
-$choice = $Screen
+$choice = $Monitor
 if ($choice -eq 0) {
     Write-Host "Choose screen:"
     foreach ($item in $menu) {
@@ -133,18 +134,18 @@ if (-not $selected) {
 }
 
 # Map 1440x900 red-dot coords onto the chosen monitor
-$screen = $selected.Screen.Bounds
-$topX = $screen.X + [int]([Math]::Round($RefTopX * $screen.Width / [double]$RefWidth))
-$topY = $screen.Y + [int]([Math]::Round($RefTopY * $screen.Height / [double]$RefHeight))
-$botX = $screen.X + [int]([Math]::Round($RefBottomX * $screen.Width / [double]$RefWidth))
-$botY = $screen.Y + [int]([Math]::Round($RefBottomY * $screen.Height / [double]$RefHeight))
+$bounds = $selected.Screen.Bounds
+$topX = $bounds.X + [int]([Math]::Round($RefTopX * $bounds.Width / [double]$RefWidth))
+$topY = $bounds.Y + [int]([Math]::Round($RefTopY * $bounds.Height / [double]$RefHeight))
+$botX = $bounds.X + [int]([Math]::Round($RefBottomX * $bounds.Width / [double]$RefWidth))
+$botY = $bounds.Y + [int]([Math]::Round($RefBottomY * $bounds.Height / [double]$RefHeight))
 # Keep a perfectly vertical path (same X)
 $x = [int]([Math]::Round(($topX + $botX) / 2.0))
 
 Write-Host ""
 Write-Host "Keep-awake running."
 Write-Host ("Selected: {0}" -f (Format-ScreenChoice $selected))
-Write-Host ("Screen bounds: {0},{1} {2}x{3}" -f $screen.X, $screen.Y, $screen.Width, $screen.Height)
+Write-Host ("Screen bounds: {0},{1} {2}x{3}" -f $bounds.X, $bounds.Y, $bounds.Width, $bounds.Height)
 Write-Host ("Red dots (scaled from {0}x{1}): top=({2},{3})  bottom=({2},{4})" -f `
     $RefWidth, $RefHeight, $x, $topY, $botY)
 Write-Host "Vertical travel between dots; click at each end. Ctrl+C to stop."
