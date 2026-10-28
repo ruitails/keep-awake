@@ -1,7 +1,7 @@
 @echo off
 setlocal
 REM Keep-awake launcher. Uses sibling keep-awake.ps1 (PowerShell + user32 only).
-REM Vertical top <-> bottom mouse sweep; clicks at each end. Ctrl+C to stop.
+REM Prompts for Primary/Secondary screen, then vertical sweep + click. Ctrl+C to stop.
 
 cd /d "%~dp0"
 

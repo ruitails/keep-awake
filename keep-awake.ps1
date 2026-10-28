@@ -5,6 +5,8 @@
 # scaled onto the primary monitor so layout stays correct at other resolutions.
 
 param(
+    # 1 = Primary, 2 = Secondary, 0 = prompt interactively
+    [int]$Screen = 0,
     # Reference canvas the red-dot coords were measured against
     [int]$RefWidth = 1440,
     [int]$RefHeight = 900,
@@ -88,8 +90,50 @@ function Click-AtEnd([string]$Label, [int]$ExpectX, [int]$ExpectY) {
     Start-Sleep -Milliseconds $EndPauseMs
 }
 
-# Map 1440x900 red-dot coords onto the primary monitor
-$screen = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds
+$allScreens = [System.Windows.Forms.Screen]::AllScreens
+$primary = [System.Windows.Forms.Screen]::PrimaryScreen
+$secondary = @($allScreens | Where-Object { -not $_.Primary })
+
+$menu = @()
+$menu += [pscustomobject]@{
+    Number = 1
+    Label  = "Primary"
+    Screen = $primary
+}
+if ($secondary.Count -ge 1) {
+    $menu += [pscustomobject]@{
+        Number = 2
+        Label  = "Secondary"
+        Screen = $secondary[0]
+    }
+}
+
+function Format-ScreenChoice($item) {
+    $b = $item.Screen.Bounds
+    return ("{0}. {1} ({2}x{3})" -f $item.Number, $item.Label, $b.Width, $b.Height)
+}
+
+$choice = $Screen
+if ($choice -eq 0) {
+    Write-Host "Choose screen:"
+    foreach ($item in $menu) {
+        Write-Host (Format-ScreenChoice $item)
+    }
+    Write-Host ""
+    $raw = Read-Host "Enter number"
+    if (-not [int]::TryParse($raw, [ref]$choice)) {
+        throw "Invalid selection: '$raw'"
+    }
+}
+
+$selected = $menu | Where-Object { $_.Number -eq $choice } | Select-Object -First 1
+if (-not $selected) {
+    $valid = ($menu | ForEach-Object { $_.Number }) -join ', '
+    throw "Screen $choice is not available. Choose one of: $valid"
+}
+
+# Map 1440x900 red-dot coords onto the chosen monitor
+$screen = $selected.Screen.Bounds
 $topX = $screen.X + [int]([Math]::Round($RefTopX * $screen.Width / [double]$RefWidth))
 $topY = $screen.Y + [int]([Math]::Round($RefTopY * $screen.Height / [double]$RefHeight))
 $botX = $screen.X + [int]([Math]::Round($RefBottomX * $screen.Width / [double]$RefWidth))
@@ -97,8 +141,10 @@ $botY = $screen.Y + [int]([Math]::Round($RefBottomY * $screen.Height / [double]$
 # Keep a perfectly vertical path (same X)
 $x = [int]([Math]::Round(($topX + $botX) / 2.0))
 
+Write-Host ""
 Write-Host "Keep-awake running."
-Write-Host ("Primary screen: {0},{1} {2}x{3}" -f $screen.X, $screen.Y, $screen.Width, $screen.Height)
+Write-Host ("Selected: {0}" -f (Format-ScreenChoice $selected))
+Write-Host ("Screen bounds: {0},{1} {2}x{3}" -f $screen.X, $screen.Y, $screen.Width, $screen.Height)
 Write-Host ("Red dots (scaled from {0}x{1}): top=({2},{3})  bottom=({2},{4})" -f `
     $RefWidth, $RefHeight, $x, $topY, $botY)
 Write-Host "Vertical travel between dots; click at each end. Ctrl+C to stop."
